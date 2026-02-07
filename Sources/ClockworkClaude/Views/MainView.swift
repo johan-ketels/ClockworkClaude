@@ -47,12 +47,22 @@ struct MainView: View {
         HStack(spacing: 0) {
             // Sidebar portion
             HStack {
-                Image(systemName: "gearshape.2")
-                    .font(.title3)
-                    .foregroundStyle(Theme.sonnet)
-                Text("Clockwork Claude")
-                    .font(Theme.monoLarge)
-                    .foregroundStyle(Theme.textPrimary)
+                Group {
+                    if let url = Bundle.main.url(forResource: "logo", withExtension: "png"),
+                       let nsImage = NSImage(contentsOf: url) {
+                        Image(nsImage: nsImage)
+                            .resizable()
+                            .frame(width: 28, height: 28)
+                    }
+                }
+                VStack(alignment: .leading, spacing: -2) {
+                    Text("Clockwork")
+                        .font(.custom("Timepiece", size: 18))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("  Claude")
+                        .font(.custom("Timepiece", size: 18))
+                        .foregroundStyle(Theme.textPrimary)
+                }
                 Spacer()
                 Text("\(jobStore.jobs.count) jobs")
                     .font(Theme.monoSmall)

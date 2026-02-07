@@ -5,10 +5,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build
 
 ```bash
-swift build
+swift build                              # debug build
+VERSION=1.0.0 bash scripts/build-app.sh  # .app bundle + DMG + zip
+make app                                 # shorthand for above
 ```
 
 No external dependencies — pure Foundation/AppKit. Swift 5.9, macOS 14+ target.
+
+### Release
+
+Push a `v*` tag to trigger the GitHub Actions workflow that builds and publishes DMG + zip as release assets:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
 
 ## Architecture
 
@@ -26,7 +36,7 @@ Uses Swift's `@Observable` macro (not `ObservableObject`). Services are injected
 
 ### View Structure
 
-`MainView` uses `NavigationSplitView`: sidebar (job cards) + detail pane (`JobDetailView`).
+`MainView` uses a fixed 3-panel layout: sidebar (job cards) + detail pane (`JobDetailView`) with a unified top bar.
 
 `JobDetailView` has two modes driven by `job: Job?`:
 - **Filtered** (`job != nil`): single job header with actions, live output row, next-run countdown, filtered history
@@ -49,6 +59,7 @@ The detail pane itself is an `HSplitView`: run list (left) + output panel (right
 | Plists | `~/Library/LaunchAgents/com.clockworkclaude.<name>.plist` |
 | Live logs | `/tmp/com.clockworkclaude.<name>.{out,err}.log` |
 | History | `~/.clockworkclaude/history/<name>/<timestamp>.{log,err.log,exitcode}` |
+| App bundle output | `build/` (git-ignored) |
 
 ### Patterns to Follow
 
@@ -57,3 +68,5 @@ The detail pane itself is an `HSplitView`: run list (left) + output panel (right
 - Views that need a `Job` take it as `Job?` when they support an "all" mode (see `JobDetailView`)
 - History record IDs are prefixed with job name (`jobName_timestamp`) for cross-job uniqueness
 - Use `Theme.*` constants for all colors, fonts, and spacing — never hardcode values
+- The app title uses the custom "Timepiece" font (`Resources/Timepiece.TTF`), registered via `ATSApplicationFontsPath` in Info.plist. All other UI text uses SF Mono via Theme.
+- `Resources/logo.png` is a transparent PNG used in the top bar. `Resources/AppIcon.icns` is the Dock/Finder icon. Both are copied into the .app bundle by `scripts/build-app.sh`.

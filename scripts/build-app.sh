@@ -38,6 +38,16 @@ sed -e "s/\${VERSION}/$VERSION/g" \
     -e "s/\${BUILD_NUMBER}/$BUILD_NUMBER/g" \
     "$PROJECT_DIR/Resources/Info.plist" > "$APP_BUNDLE/Contents/Info.plist"
 
+# Copy custom fonts
+for font in "$PROJECT_DIR"/Resources/*.TTF "$PROJECT_DIR"/Resources/*.ttf "$PROJECT_DIR"/Resources/*.otf; do
+    [ -f "$font" ] && cp "$font" "$APP_BUNDLE/Contents/Resources/"
+done
+
+# Copy logo if it exists
+if [ -f "$PROJECT_DIR/Resources/logo.png" ]; then
+    cp "$PROJECT_DIR/Resources/logo.png" "$APP_BUNDLE/Contents/Resources/logo.png"
+fi
+
 # Copy app icon if it exists
 if [ -f "$PROJECT_DIR/Resources/AppIcon.icns" ]; then
     cp "$PROJECT_DIR/Resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
