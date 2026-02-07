@@ -5,6 +5,7 @@ struct JobCardView: View {
     let status: JobStatus
     let isSelected: Bool
     let onSelect: () -> Void
+    let onEdit: () -> Void
     let onToggle: () -> Void
     let onDelete: () -> Void
 
@@ -48,6 +49,15 @@ struct JobCardView: View {
                 }
 
                 Spacer()
+
+                // Edit
+                Button(action: onEdit) {
+                    Image(systemName: "gearshape")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textMuted)
+                }
+                .buttonStyle(.plain)
+                .help("Edit job")
 
                 // Toggle
                 Button(action: onToggle) {

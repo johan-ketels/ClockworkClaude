@@ -4,6 +4,7 @@ struct JobListView: View {
     @Environment(JobStore.self) private var jobStore
     @Environment(LaunchdService.self) private var launchdService
     @Binding var selectedJob: Job?
+    let onEdit: (Job) -> Void
     let onToggle: (Job) -> Void
     let onDelete: (Job) -> Void
 
@@ -16,6 +17,7 @@ struct JobListView: View {
                         status: launchdService.cachedStatus(for: job),
                         isSelected: selectedJob?.id == job.id,
                         onSelect: { selectedJob = job },
+                        onEdit: { onEdit(job) },
                         onToggle: { onToggle(job) },
                         onDelete: { onDelete(job) }
                     )

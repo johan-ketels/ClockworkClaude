@@ -14,7 +14,7 @@ struct ClockworkClaudeApp: App {
                 .environment(jobStore)
                 .environment(launchdService)
                 .environment(commandScanner)
-                .frame(minWidth: 900, minHeight: 600)
+                .frame(minWidth: 960, minHeight: 600)
                 .onAppear {
                     launchdService.refreshStatus(for: jobStore.jobs)
                     jobStore.syncWithSystem(launchdService: launchdService)

@@ -4,6 +4,7 @@ struct JobDetailView: View {
     let job: Job?
     let status: JobStatus
     let allJobs: [Job]
+    var showHeader: Bool = true
     let onEdit: () -> Void
     let onRunNow: () -> Void
     let onToggle: () -> Void
@@ -29,8 +30,10 @@ struct JobDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-            Divider().background(Theme.border)
+            if showHeader {
+                header
+                Divider().background(Theme.border)
+            }
 
             HSplitView {
                 runList
@@ -42,25 +45,47 @@ struct JobDetailView: View {
         .background(Theme.background)
         .onAppear {
             loadCurrentHistory()
+            startWatching()
             if let job {
-                logWatcher.watch(path: job.stdoutLogPath)
+                if status.pid != nil {
+                    logWatcher.watch(path: job.stdoutLogPath)
+                    selection = .live
+                } else {
+                    selection = historyService.records.first.map { .historical($0.id) } ?? .live
+                }
             }
             startCountdown()
         }
         .onDisappear {
+            historyService.stopWatching()
             logWatcher.stop()
             countdownTimer?.invalidate()
         }
         .onChange(of: job?.id) { _, _ in
             loadCurrentHistory()
+            startWatching()
             if let job {
-                logWatcher.watch(path: job.stdoutLogPath)
-                selection = .live
+                if status.pid != nil {
+                    logWatcher.watch(path: job.stdoutLogPath)
+                    selection = .live
+                } else {
+                    selection = historyService.records.first.map { .historical($0.id) } ?? .live
+                }
             } else {
                 logWatcher.stop()
                 selection = historyService.records.first.map { .historical($0.id) } ?? .live
             }
             showingStderr = false
+        }
+        .onChange(of: status.pid) { oldPid, newPid in
+            guard let job else { return }
+            if newPid != nil {
+                logWatcher.watch(path: job.stdoutLogPath)
+                selection = .live
+            } else if oldPid != nil {
+                loadCurrentHistory()
+                selection = historyService.records.first.map { .historical($0.id) } ?? .live
+            }
         }
         .popover(isPresented: $showInfo, arrowEdge: .bottom) {
             if let job {
@@ -74,6 +99,14 @@ struct JobDetailView: View {
             historyService.loadHistory(for: job.name)
         } else {
             historyService.loadAllHistory(jobNames: allJobNames)
+        }
+    }
+
+    private func startWatching() {
+        if let job {
+            historyService.watchHistory(for: job.name)
+        } else {
+            historyService.watchAllHistory(jobNames: allJobNames)
         }
     }
 
@@ -197,8 +230,10 @@ struct JobDetailView: View {
                             Divider().background(Theme.border).padding(.horizontal, Theme.paddingSmall)
                         }
 
-                        liveRow(for: job)
-                        Divider().background(Theme.border).padding(.horizontal, Theme.paddingSmall)
+                        if status.pid != nil {
+                            liveRow(for: job)
+                            Divider().background(Theme.border).padding(.horizontal, Theme.paddingSmall)
+                        }
                     } else {
                         // All-jobs mode: show upcoming runs for all active scheduled jobs
                         let scheduled = upcomingJobs

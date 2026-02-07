@@ -6,11 +6,27 @@ final class HistoryService {
     var records: [RunRecord] = []
 
     private let baseDir: URL
+    private var sources: [DispatchSourceFileSystemObject] = []
+    private var fileDescriptors: [Int32] = []
+    private var reloadWork: DispatchWorkItem?
+    private var currentMode: WatchMode = .none
+
+    private enum WatchMode {
+        case none
+        case single(String)
+        case all([String])
+    }
 
     init() {
         let home = FileManager.default.homeDirectoryForCurrentUser
         baseDir = home.appendingPathComponent(".clockworkclaude/history")
     }
+
+    deinit {
+        stopWatching()
+    }
+
+    // MARK: - Load
 
     func loadHistory(for jobName: String) {
         records = parseRecords(for: jobName)
@@ -22,6 +38,86 @@ final class HistoryService {
             all.append(contentsOf: parseRecords(for: name))
         }
         records = all.sorted { $0.timestamp > $1.timestamp }
+    }
+
+    // MARK: - Directory Watching
+
+    func watchHistory(for jobName: String) {
+        stopWatching()
+        currentMode = .single(jobName)
+        let dir = baseDir.appendingPathComponent(jobName)
+        ensureDirectory(dir)
+        watchDirectory(at: dir)
+    }
+
+    func watchAllHistory(jobNames: [String]) {
+        stopWatching()
+        currentMode = .all(jobNames)
+        for name in jobNames {
+            let dir = baseDir.appendingPathComponent(name)
+            ensureDirectory(dir)
+            watchDirectory(at: dir)
+        }
+    }
+
+    func stopWatching() {
+        reloadWork?.cancel()
+        reloadWork = nil
+        for source in sources {
+            source.cancel()
+        }
+        sources.removeAll()
+        for fd in fileDescriptors {
+            close(fd)
+        }
+        fileDescriptors.removeAll()
+        currentMode = .none
+    }
+
+    private func watchDirectory(at url: URL) {
+        let fd = open(url.path, O_EVTONLY)
+        guard fd >= 0 else { return }
+        fileDescriptors.append(fd)
+
+        let source = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd,
+            eventMask: [.write, .extend, .rename, .link],
+            queue: .main
+        )
+
+        source.setEventHandler { [weak self] in
+            self?.scheduleReload()
+        }
+
+        sources.append(source)
+        source.resume()
+    }
+
+    private func scheduleReload() {
+        reloadWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.reloadCurrent()
+        }
+        reloadWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    private func reloadCurrent() {
+        switch currentMode {
+        case .none:
+            break
+        case .single(let name):
+            loadHistory(for: name)
+        case .all(let names):
+            loadAllHistory(jobNames: names)
+        }
+    }
+
+    private func ensureDirectory(_ url: URL) {
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: url.path) {
+            try? fm.createDirectory(at: url, withIntermediateDirectories: true)
+        }
     }
 
     private func parseRecords(for jobName: String) -> [RunRecord] {
