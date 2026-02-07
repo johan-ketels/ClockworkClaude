@@ -56,7 +56,3 @@ git push origin v1.0.0
 - Warm dark theme inspired by Claude's UI
 - SF Mono typography
 - No dependencies — just Apple frameworks
-
-## Inspired by
-
-[runclauderun.com](https://runclauderun.com/) — but native, with deeper Claude Code integration.
