@@ -32,6 +32,24 @@ swift build
 .build/debug/ClockworkClaude
 ```
 
+### App bundle (DMG)
+
+```bash
+VERSION=0.1.0 bash scripts/build-app.sh
+open "build/Clockwork Claude.app"
+```
+
+This creates a signed `.app` bundle, a `.dmg` with Applications symlink, and a `.zip` in `build/`. You can also run `make app`.
+
+### Releases
+
+Push a version tag to trigger a GitHub Actions build that publishes the DMG and zip as release assets:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
 ## Tech
 
 - Swift / SwiftUI
