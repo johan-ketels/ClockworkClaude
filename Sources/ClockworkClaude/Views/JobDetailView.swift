@@ -243,6 +243,13 @@ struct JobDetailView: View {
                                 Divider().background(Theme.border).padding(.horizontal, Theme.paddingSmall)
                             }
                         }
+
+                        // All-jobs mode: show running jobs
+                        let running = runningJobs
+                        ForEach(running, id: \.id) { runningJob in
+                            liveRow(for: runningJob)
+                            Divider().background(Theme.border).padding(.horizontal, Theme.paddingSmall)
+                        }
                     }
 
                     // Historical entries
@@ -254,6 +261,15 @@ struct JobDetailView: View {
             }
         }
         .background(Theme.surface)
+    }
+
+    // MARK: - Running Jobs
+
+    private var runningJobs: [Job] {
+        allJobs.filter { j in
+            let s = launchdService.cachedStatus(for: j)
+            return s.pid != nil
+        }
     }
 
     // MARK: - Upcoming Jobs
@@ -307,30 +323,39 @@ struct JobDetailView: View {
     // MARK: - Live Row
 
     private func liveRow(for job: Job) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        let jobStatus = isAllJobsMode ? launchdService.cachedStatus(for: job) : status
+
+        return VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: Theme.paddingSmall) {
                 Circle()
-                    .fill(status.pid != nil ? Theme.active : Theme.textMuted)
+                    .fill(jobStatus.pid != nil ? Theme.active : Theme.textMuted)
                     .frame(width: 6, height: 6)
-                    .shadow(color: status.pid != nil ? Theme.active.opacity(0.6) : .clear, radius: 4)
+                    .shadow(color: jobStatus.pid != nil ? Theme.active.opacity(0.6) : .clear, radius: 4)
 
-                Text("Live")
-                    .font(.system(.caption, design: .monospaced).weight(.semibold))
-                    .foregroundStyle(Theme.textPrimary)
+                if isAllJobsMode {
+                    Text(job.name)
+                        .font(.system(.caption, design: .monospaced).weight(.semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    modelBadge(for: job)
+                } else {
+                    Text("Live")
+                        .font(.system(.caption, design: .monospaced).weight(.semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                }
 
                 Spacer()
 
-                if status.pid != nil {
+                if jobStatus.pid != nil {
                     Text("running")
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundStyle(Theme.active)
-                } else if let exitCode = status.lastExitCode {
+                } else if let exitCode = jobStatus.lastExitCode {
                     exitBadge(exitCode)
                 }
             }
 
             // Second line: PID or last status info
-            if let pid = status.pid {
+            if let pid = jobStatus.pid {
                 Text("PID \(pid)")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(Theme.textMuted)
@@ -577,8 +602,6 @@ struct JobDetailView: View {
     }
 
     private func countdownText(for job: Job) -> String {
-        let jobStatus = launchdService.cachedStatus(for: job)
-        if jobStatus.pid != nil { return "running..." }
         guard let next = nextRunDate(for: job) else { return "—" }
         let remaining = next.timeIntervalSince(now)
         if remaining <= 0 { return "any moment..." }
