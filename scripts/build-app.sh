@@ -38,15 +38,24 @@ sed -e "s/\${VERSION}/$VERSION/g" \
     -e "s/\${BUILD_NUMBER}/$BUILD_NUMBER/g" \
     "$PROJECT_DIR/Resources/Info.plist" > "$APP_BUNDLE/Contents/Info.plist"
 
-# Copy custom fonts
-for font in "$PROJECT_DIR"/Resources/*.TTF "$PROJECT_DIR"/Resources/*.ttf "$PROJECT_DIR"/Resources/*.otf; do
-    [ -f "$font" ] && cp "$font" "$APP_BUNDLE/Contents/Resources/"
+# Copy custom fonts (check both locations)
+for dir in "$PROJECT_DIR/Sources/ClockworkClaude/Resources" "$PROJECT_DIR/Resources"; do
+    for font in "$dir"/*.TTF "$dir"/*.ttf "$dir"/*.otf; do
+        [ -f "$font" ] && cp "$font" "$APP_BUNDLE/Contents/Resources/"
+    done
 done
 
-# Copy logo if it exists
-if [ -f "$PROJECT_DIR/Resources/logo.png" ]; then
-    cp "$PROJECT_DIR/Resources/logo.png" "$APP_BUNDLE/Contents/Resources/logo.png"
-fi
+# Copy logo if it exists (check both locations, prefer SVG)
+logo_copied=false
+for ext in svg png; do
+    for dir in "$PROJECT_DIR/Sources/ClockworkClaude/Resources" "$PROJECT_DIR/Resources"; do
+        if [ -f "$dir/logo.$ext" ]; then
+            cp "$dir/logo.$ext" "$APP_BUNDLE/Contents/Resources/logo.$ext"
+            logo_copied=true
+            break 2
+        fi
+    done
+done
 
 # Copy app icon if it exists
 if [ -f "$PROJECT_DIR/Resources/AppIcon.icns" ]; then
@@ -59,6 +68,9 @@ fi
 echo -n "APPL????" > "$APP_BUNDLE/Contents/PkgInfo"
 
 echo "    Bundle: $APP_BUNDLE"
+
+# Strip extended attributes that break codesign
+xattr -cr "$APP_BUNDLE"
 
 # --- Step 3: Code sign ---
 echo "==> Code signing"

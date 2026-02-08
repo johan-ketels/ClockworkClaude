@@ -48,11 +48,12 @@ struct MainView: View {
             // Sidebar portion
             HStack {
                 Group {
-                    if let url = Bundle.main.url(forResource: "logo", withExtension: "png"),
+                    if let url = Bundle.module.url(forResource: "logo", withExtension: "svg") ?? Bundle.main.url(forResource: "logo", withExtension: "svg"),
                        let nsImage = NSImage(contentsOf: url) {
                         Image(nsImage: nsImage)
                             .resizable()
-                            .frame(width: 28, height: 28)
+                            .interpolation(.high)
+                            .frame(width: 30, height: 30)
                     }
                 }
                 VStack(alignment: .leading, spacing: -2) {

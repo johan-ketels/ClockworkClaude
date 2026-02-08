@@ -7,7 +7,11 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "ClockworkClaude",
-            path: "Sources/ClockworkClaude"
+            path: "Sources/ClockworkClaude",
+            resources: [
+                .copy("Resources/logo.svg"),
+                .copy("Resources/Timepiece.TTF")
+            ]
         )
     ]
 )

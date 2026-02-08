@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import CoreText
 
 @main
 struct ClockworkClaudeApp: App {
@@ -7,6 +8,13 @@ struct ClockworkClaudeApp: App {
     @State private var jobStore = JobStore()
     @State private var launchdService = LaunchdService()
     @State private var commandScanner = CommandScanner()
+
+    init() {
+        if let fontURL = Bundle.module.url(forResource: "Timepiece", withExtension: "TTF")
+            ?? Bundle.main.url(forResource: "Timepiece", withExtension: "TTF") {
+            CTFontManagerRegisterFontsForURL(fontURL as CFURL, .process, nil)
+        }
+    }
 
     var body: some Scene {
         WindowGroup {
