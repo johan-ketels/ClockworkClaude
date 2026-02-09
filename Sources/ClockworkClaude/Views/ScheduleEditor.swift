@@ -75,7 +75,7 @@ struct ScheduleEditor: View {
                     .foregroundStyle(Theme.textSecondary)
                 TextField("", value: $intervalValue, format: .number)
                     .font(Theme.monoBody)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(ThemedTextFieldStyle())
                     .frame(width: 60)
                 Picker("", selection: $intervalUnit) {
                     ForEach(IntervalUnit.allCases, id: \.self) { unit in

@@ -45,7 +45,7 @@ struct JobFormView: View {
                                 .foregroundStyle(Theme.textSecondary)
                             TextField("daily-review", text: $job.name)
                                 .font(Theme.monoBody)
-                                .textFieldStyle(.roundedBorder)
+                                .textFieldStyle(ThemedTextFieldStyle())
                                 .onChange(of: job.name) { _, newValue in
                                     validateName(newValue)
                                 }
@@ -84,7 +84,7 @@ struct JobFormView: View {
                         HStack {
                             TextField("/Users/you/project", text: $job.directory)
                                 .font(Theme.monoBody)
-                                .textFieldStyle(.roundedBorder)
+                                .textFieldStyle(ThemedTextFieldStyle())
                             Button("Browse...") {
                                 pickDirectory()
                             }
@@ -212,7 +212,7 @@ struct JobFormView: View {
                                 .foregroundStyle(Theme.textSecondary)
                             TextField("", value: $job.maxTurns, format: .number)
                                 .font(Theme.monoBody)
-                                .textFieldStyle(.roundedBorder)
+                                .textFieldStyle(ThemedTextFieldStyle())
                                 .frame(width: 80)
                             Text("Limits the number of agentic turns")
                                 .font(.caption)

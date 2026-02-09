@@ -46,6 +46,22 @@ enum Theme {
     static let cornerRadiusSmall: CGFloat = 4
 }
 
+struct ThemedTextFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .padding(6)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall)
+                    .fill(Theme.background)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall)
+                            .stroke(Theme.border, lineWidth: 1)
+                    )
+            )
+            .foregroundStyle(Theme.textPrimary)
+    }
+}
+
 extension Color {
     init(hex: UInt, opacity: Double = 1.0) {
         self.init(

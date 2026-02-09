@@ -9,6 +9,8 @@ struct MainView: View {
     @State private var editingJob: Job?
     @State private var statusTimer: Timer?
     @State private var showInfo = false
+    @State private var sidebarWidth: CGFloat = 320
+    @State private var dragStartWidth: CGFloat = 320
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,8 +18,8 @@ struct MainView: View {
             Divider().background(Theme.border)
             HStack(spacing: 0) {
                 sidebarContent
-                    .frame(width: 320)
-                Divider().background(Theme.border)
+                    .frame(width: sidebarWidth)
+                sidebarDivider
                 detail
             }
         }
@@ -75,7 +77,7 @@ struct MainView: View {
                     .foregroundStyle(Theme.active)
             }
             .padding(.horizontal, Theme.paddingLarge)
-            .frame(width: 320)
+            .frame(width: sidebarWidth)
 
             // Detail portion
             HStack(alignment: .center) {
@@ -160,6 +162,37 @@ struct MainView: View {
                 .foregroundStyle(Theme.textPrimary)
         }
         Spacer()
+    }
+
+    // MARK: - Resizable Divider
+
+    private var sidebarDivider: some View {
+        Rectangle()
+            .fill(Theme.border)
+            .frame(width: 1)
+            .overlay(
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(width: 9)
+                    .contentShape(Rectangle())
+                    .onHover { hovering in
+                        if hovering {
+                            NSCursor.resizeLeftRight.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
+                    .gesture(
+                        DragGesture(minimumDistance: 1)
+                            .onChanged { value in
+                                let newWidth = dragStartWidth + value.translation.width
+                                sidebarWidth = min(max(newWidth, 220), 500)
+                            }
+                            .onEnded { _ in
+                                dragStartWidth = sidebarWidth
+                            }
+                    )
+            )
     }
 
     // MARK: - Sidebar Content

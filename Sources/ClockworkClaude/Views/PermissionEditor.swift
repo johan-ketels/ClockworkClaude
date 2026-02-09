@@ -68,7 +68,7 @@ struct PermissionEditor: View {
                         .foregroundStyle(Theme.textMuted)
                     TextField("Read,Write,Edit,Bash(git *)", text: $customTools)
                         .font(Theme.monoBody)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(ThemedTextFieldStyle())
                 }
             } else if let tools = permissionPreset.tools {
                 toolBadges(tools)

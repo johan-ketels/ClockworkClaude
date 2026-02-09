@@ -238,7 +238,7 @@ struct JobDetailView: View {
                         // All-jobs mode: show upcoming runs for all active scheduled jobs
                         let scheduled = upcomingJobs
                         if !scheduled.isEmpty {
-                            ForEach(scheduled, id: \.0.id) { scheduledJob, _ in
+                            ForEach(scheduled.map { ($0.0, $0.1, "scheduled-\($0.0.id)") }, id: \.2) { scheduledJob, _, _ in
                                 nextRunRow(for: scheduledJob)
                                 Divider().background(Theme.border).padding(.horizontal, Theme.paddingSmall)
                             }
@@ -246,7 +246,7 @@ struct JobDetailView: View {
 
                         // All-jobs mode: show running jobs
                         let running = runningJobs
-                        ForEach(running, id: \.id) { runningJob in
+                        ForEach(running.map { ($0, "running-\($0.id)") }, id: \.1) { runningJob, _ in
                             liveRow(for: runningJob)
                             Divider().background(Theme.border).padding(.horizontal, Theme.paddingSmall)
                         }
@@ -324,13 +324,17 @@ struct JobDetailView: View {
 
     private func liveRow(for job: Job) -> some View {
         let jobStatus = isAllJobsMode ? launchdService.cachedStatus(for: job) : status
+        let isRunning = jobStatus.pid != nil
 
         return VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: Theme.paddingSmall) {
-                Circle()
-                    .fill(jobStatus.pid != nil ? Theme.active : Theme.textMuted)
-                    .frame(width: 6, height: 6)
-                    .shadow(color: jobStatus.pid != nil ? Theme.active.opacity(0.6) : .clear, radius: 4)
+                if isRunning {
+                    PulsingDot()
+                } else {
+                    Circle()
+                        .fill(Theme.textMuted)
+                        .frame(width: 6, height: 6)
+                }
 
                 if isAllJobsMode {
                     Text(job.name)
@@ -338,17 +342,24 @@ struct JobDetailView: View {
                         .foregroundStyle(Theme.textPrimary)
                     modelBadge(for: job)
                 } else {
-                    Text("Live")
+                    Text(isRunning ? "Running" : "Live")
                         .font(.system(.caption, design: .monospaced).weight(.semibold))
                         .foregroundStyle(Theme.textPrimary)
                 }
 
                 Spacer()
 
-                if jobStatus.pid != nil {
-                    Text("running")
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(Theme.active)
+                if isRunning {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 8))
+                        Text("running")
+                    }
+                    .font(.system(.caption2, design: .monospaced).weight(.medium))
+                    .foregroundStyle(Theme.sonnet)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Theme.sonnet.opacity(0.15)))
                 } else if let exitCode = jobStatus.lastExitCode {
                     exitBadge(exitCode)
                 }
@@ -359,15 +370,20 @@ struct JobDetailView: View {
                 Text("PID \(pid)")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(Theme.textMuted)
+                    .padding(.leading, 10)
             } else {
                 Text(logWatcher.logContent.isEmpty ? "Waiting for output..." : "Last run output")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(Theme.textMuted)
+                    .padding(.leading, 10)
             }
         }
         .padding(.horizontal, Theme.paddingMedium)
         .padding(.vertical, Theme.paddingSmall)
-        .background(selection == .live ? Theme.sonnet.opacity(0.1) : Color.clear)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall)
+                .fill(isRunning ? Theme.sonnet.opacity(0.08) : (selection == .live ? Theme.sonnet.opacity(0.1) : Color.clear))
+        )
         .contentShape(Rectangle())
         .onTapGesture {
             selection = .live
@@ -789,6 +805,19 @@ struct JobDetailView: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(Capsule().fill(Theme.modelColor(job.model)))
+    }
+
+    private struct PulsingDot: View {
+        @State private var isPulsing = false
+
+        var body: some View {
+            Circle()
+                .fill(Theme.sonnet)
+                .frame(width: 6, height: 6)
+                .shadow(color: Theme.sonnet.opacity(isPulsing ? 0.8 : 0.2), radius: isPulsing ? 6 : 2)
+                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isPulsing)
+                .onAppear { isPulsing = true }
+        }
     }
 
     private func statusBadge(for job: Job) -> some View {
