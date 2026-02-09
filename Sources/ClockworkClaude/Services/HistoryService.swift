@@ -4,12 +4,14 @@ import Observation
 @Observable
 final class HistoryService {
     var records: [RunRecord] = []
+    var showArchived: Bool = false
 
     private let baseDir: URL
     private var sources: [DispatchSourceFileSystemObject] = []
     private var fileDescriptors: [Int32] = []
     private var reloadWork: DispatchWorkItem?
     private var currentMode: WatchMode = .none
+    private var archivedTimestamps: [String: Set<String>] = [:]
 
     private enum WatchMode {
         case none
@@ -121,6 +123,9 @@ final class HistoryService {
     }
 
     private func parseRecords(for jobName: String) -> [RunRecord] {
+        let archived = loadArchivedTimestamps(for: jobName)
+        archivedTimestamps[jobName] = archived
+
         let jobDir = baseDir.appendingPathComponent(jobName)
         let fm = FileManager.default
 
@@ -161,7 +166,7 @@ final class HistoryService {
                     if d > 0 { duration = d }
                 }
 
-                return RunRecord(
+                var record = RunRecord(
                     id: "\(jobName)_\(ts)",
                     jobName: jobName,
                     timestamp: date,
@@ -170,15 +175,114 @@ final class HistoryService {
                     exitCode: exitCode,
                     duration: duration
                 )
+                record.isArchived = archived.contains(ts)
+                return record
             }
         } catch {
             return []
         }
     }
 
+    // MARK: - Archive Persistence
+
+    private func loadArchivedTimestamps(for jobName: String) -> Set<String> {
+        let archiveFile = baseDir
+            .appendingPathComponent(jobName)
+            .appendingPathComponent("archived.json")
+        guard let data = try? Data(contentsOf: archiveFile),
+              let timestamps = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        return Set(timestamps)
+    }
+
+    private func saveArchivedTimestamps(for jobName: String) {
+        let archiveFile = baseDir
+            .appendingPathComponent(jobName)
+            .appendingPathComponent("archived.json")
+        let timestamps = archivedTimestamps[jobName] ?? []
+        if timestamps.isEmpty {
+            try? FileManager.default.removeItem(at: archiveFile)
+            return
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        if let data = try? encoder.encode(Array(timestamps).sorted()) {
+            try? data.write(to: archiveFile, options: .atomic)
+        }
+    }
+
+    private func extractTimestamp(from id: String, jobName: String) -> String {
+        let prefix = "\(jobName)_"
+        return String(id.dropFirst(prefix.count))
+    }
+
+    // MARK: - Archive Filtering
+
+    var visibleRecords: [RunRecord] {
+        showArchived ? records : records.filter { !$0.isArchived }
+    }
+
+    var archivedCount: Int {
+        records.filter(\.isArchived).count
+    }
+
+    // MARK: - Archive Operations
+
+    func archiveRecord(_ record: RunRecord) {
+        let ts = extractTimestamp(from: record.id, jobName: record.jobName)
+        archivedTimestamps[record.jobName, default: []].insert(ts)
+        saveArchivedTimestamps(for: record.jobName)
+        if let idx = records.firstIndex(where: { $0.id == record.id }) {
+            records[idx].isArchived = true
+        }
+    }
+
+    func unarchiveRecord(_ record: RunRecord) {
+        let ts = extractTimestamp(from: record.id, jobName: record.jobName)
+        archivedTimestamps[record.jobName, default: []].remove(ts)
+        saveArchivedTimestamps(for: record.jobName)
+        if let idx = records.firstIndex(where: { $0.id == record.id }) {
+            records[idx].isArchived = false
+        }
+    }
+
+    func archiveAll(for jobName: String? = nil) {
+        let targets = records.filter { !$0.isArchived && (jobName == nil || $0.jobName == jobName) }
+        for record in targets {
+            let ts = extractTimestamp(from: record.id, jobName: record.jobName)
+            archivedTimestamps[record.jobName, default: []].insert(ts)
+        }
+        for name in Set(targets.map(\.jobName)) {
+            saveArchivedTimestamps(for: name)
+        }
+        for i in records.indices where targets.contains(where: { $0.id == records[i].id }) {
+            records[i].isArchived = true
+        }
+    }
+
+    func archiveOlderThan(_ date: Date, for jobName: String? = nil) {
+        let targets = records.filter {
+            !$0.isArchived && $0.timestamp < date && (jobName == nil || $0.jobName == jobName)
+        }
+        for record in targets {
+            let ts = extractTimestamp(from: record.id, jobName: record.jobName)
+            archivedTimestamps[record.jobName, default: []].insert(ts)
+        }
+        for name in Set(targets.map(\.jobName)) {
+            saveArchivedTimestamps(for: name)
+        }
+        for i in records.indices where targets.contains(where: { $0.id == records[i].id }) {
+            records[i].isArchived = true
+        }
+    }
+
+    // MARK: - Clear
+
     func clearHistory(for jobName: String) {
         let jobDir = baseDir.appendingPathComponent(jobName)
         try? FileManager.default.removeItem(at: jobDir)
+        archivedTimestamps[jobName] = nil
         records = []
     }
 }

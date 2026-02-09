@@ -13,8 +13,8 @@ struct JobCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.paddingSmall) {
-            // Top row: name + model badge + status
-            HStack {
+            // Top row: name + actions + status
+            HStack(spacing: Theme.paddingSmall) {
                 Text(job.name)
                     .font(Theme.monoBody.weight(.semibold))
                     .foregroundStyle(Theme.textPrimary)
@@ -22,7 +22,30 @@ struct JobCardView: View {
 
                 Spacer()
 
-                modelBadge
+                Button(action: onEdit) {
+                    Image(systemName: "gearshape")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textMuted)
+                }
+                .buttonStyle(.plain)
+                .help("Edit job")
+
+                Button(action: onToggle) {
+                    Image(systemName: job.enabled ? "pause.fill" : "play.fill")
+                        .font(.caption)
+                        .foregroundStyle(job.enabled ? Theme.warning : Theme.active)
+                }
+                .buttonStyle(.plain)
+                .help(job.enabled ? "Disable" : "Enable")
+
+                Button(action: { showDeleteConfirm = true }) {
+                    Image(systemName: "xmark")
+                        .font(.caption)
+                        .foregroundStyle(Theme.error)
+                }
+                .buttonStyle(.plain)
+                .help("Delete job")
+
                 statusBadge
             }
 
@@ -32,51 +55,18 @@ struct JobCardView: View {
                 .foregroundStyle(Theme.textSecondary)
                 .lineLimit(2)
 
-            // Bottom row: schedule + directory + actions
-            HStack {
+            // Bottom row: schedule + model + directory
+            HStack(spacing: Theme.paddingMedium) {
                 Label(job.scheduleSummary, systemImage: "clock")
-                    .font(Theme.monoSmall)
-                    .foregroundStyle(Theme.textMuted)
-
-                Spacer()
-
+                Label(job.model.shortName, systemImage: "cpu")
                 if !job.directory.isEmpty {
                     let dirName = (job.directory as NSString).lastPathComponent
                     Label(dirName, systemImage: "folder")
-                        .font(Theme.monoSmall)
-                        .foregroundStyle(Theme.textMuted)
                         .lineLimit(1)
                 }
-
-                Spacer()
-
-                // Edit
-                Button(action: onEdit) {
-                    Image(systemName: "gearshape")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textMuted)
-                }
-                .buttonStyle(.plain)
-                .help("Edit job")
-
-                // Toggle
-                Button(action: onToggle) {
-                    Image(systemName: job.enabled ? "pause.fill" : "play.fill")
-                        .font(.caption)
-                        .foregroundStyle(job.enabled ? Theme.warning : Theme.active)
-                }
-                .buttonStyle(.plain)
-                .help(job.enabled ? "Disable" : "Enable")
-
-                // Delete
-                Button(action: { showDeleteConfirm = true }) {
-                    Image(systemName: "xmark")
-                        .font(.caption)
-                        .foregroundStyle(Theme.error)
-                }
-                .buttonStyle(.plain)
-                .help("Delete job")
             }
+            .font(Theme.monoSmall)
+            .foregroundStyle(Theme.textMuted)
         }
         .padding(Theme.paddingMedium)
         .background(
@@ -95,17 +85,6 @@ struct JobCardView: View {
         } message: {
             Text("Delete '\(job.name)'? This will unload the launchd job and remove the plist.")
         }
-    }
-
-    private var modelBadge: some View {
-        Text(job.model.shortName)
-            .font(.system(.caption2, design: .monospaced).weight(.semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(
-                Capsule().fill(Theme.modelColor(job.model))
-            )
     }
 
     private var statusBadge: some View {

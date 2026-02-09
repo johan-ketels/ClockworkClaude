@@ -8,6 +8,7 @@ struct RunRecord: Identifiable {
     let errorOutput: String?
     let exitCode: Int?
     let duration: TimeInterval?
+    var isArchived: Bool = false
 
     var succeeded: Bool {
         exitCode == 0

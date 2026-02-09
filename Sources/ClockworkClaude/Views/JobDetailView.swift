@@ -51,7 +51,7 @@ struct JobDetailView: View {
                     logWatcher.watch(path: job.stdoutLogPath)
                     selection = .live
                 } else {
-                    selection = historyService.records.first.map { .historical($0.id) } ?? .live
+                    selection = historyService.visibleRecords.first.map { .historical($0.id) } ?? .live
                 }
             }
             startCountdown()
@@ -69,11 +69,11 @@ struct JobDetailView: View {
                     logWatcher.watch(path: job.stdoutLogPath)
                     selection = .live
                 } else {
-                    selection = historyService.records.first.map { .historical($0.id) } ?? .live
+                    selection = historyService.visibleRecords.first.map { .historical($0.id) } ?? .live
                 }
             } else {
                 logWatcher.stop()
-                selection = historyService.records.first.map { .historical($0.id) } ?? .live
+                selection = historyService.visibleRecords.first.map { .historical($0.id) } ?? .live
             }
             showingStderr = false
         }
@@ -84,7 +84,15 @@ struct JobDetailView: View {
                 selection = .live
             } else if oldPid != nil {
                 loadCurrentHistory()
-                selection = historyService.records.first.map { .historical($0.id) } ?? .live
+                selection = historyService.visibleRecords.first.map { .historical($0.id) } ?? .live
+            }
+        }
+        .onChange(of: historyService.showArchived) { _, _ in
+            if case .historical(let id) = selection {
+                if !historyService.visibleRecords.contains(where: { $0.id == id }) {
+                    selection = historyService.visibleRecords.first
+                        .map { .historical($0.id) } ?? .live
+                }
             }
         }
         .popover(isPresented: $showInfo, arrowEdge: .bottom) {
@@ -204,10 +212,54 @@ struct JobDetailView: View {
                 Text(job.map { "Runs — \($0.name)" } ?? "All Runs")
                     .font(Theme.monoSmall.weight(.semibold))
                     .foregroundStyle(Theme.textSecondary)
-                Text("(\(historyService.records.count))")
+                Text("(\(historyService.visibleRecords.count))")
                     .font(Theme.monoSmall)
                     .foregroundStyle(Theme.textMuted)
                 Spacer()
+
+                Button(action: { historyService.showArchived.toggle() }) {
+                    HStack(spacing: 3) {
+                        Image(systemName: historyService.showArchived
+                            ? "archivebox.fill" : "archivebox")
+                            .font(.caption2)
+                        if historyService.archivedCount > 0 {
+                            Text("\(historyService.archivedCount)")
+                                .font(.system(.caption2, design: .monospaced))
+                        }
+                    }
+                    .foregroundStyle(historyService.showArchived
+                        ? Theme.sonnet : Theme.textMuted)
+                }
+                .buttonStyle(.plain)
+                .help(historyService.showArchived
+                    ? "Hide archived runs" : "Show archived runs")
+
+                Menu {
+                    Button("Archive all") {
+                        historyService.archiveAll(for: job?.name)
+                    }
+                    Menu("Archive older than...") {
+                        Button("1 day") {
+                            historyService.archiveOlderThan(
+                                Date().addingTimeInterval(-86400), for: job?.name)
+                        }
+                        Button("1 week") {
+                            historyService.archiveOlderThan(
+                                Date().addingTimeInterval(-604800), for: job?.name)
+                        }
+                        Button("1 month") {
+                            historyService.archiveOlderThan(
+                                Date().addingTimeInterval(-2592000), for: job?.name)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textMuted)
+                }
+                .menuStyle(.borderlessButton)
+                .frame(width: 20)
+
                 Button(action: { loadCurrentHistory() }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.caption)
@@ -253,7 +305,7 @@ struct JobDetailView: View {
                     }
 
                     // Historical entries
-                    ForEach(historyService.records) { record in
+                    ForEach(historyService.visibleRecords) { record in
                         historyRow(record)
                         Divider().background(Theme.border.opacity(0.5)).padding(.horizontal, Theme.paddingMedium)
                     }
@@ -293,7 +345,6 @@ struct JobDetailView: View {
                     Text(job.name)
                         .font(.system(.caption, design: .monospaced).weight(.semibold))
                         .foregroundStyle(Theme.textPrimary)
-                    modelBadge(for: job)
                 } else {
                     Text("Next run")
                         .font(.system(.caption, design: .monospaced).weight(.semibold))
@@ -340,7 +391,6 @@ struct JobDetailView: View {
                     Text(job.name)
                         .font(.system(.caption, design: .monospaced).weight(.semibold))
                         .foregroundStyle(Theme.textPrimary)
-                    modelBadge(for: job)
                 } else {
                     Text(isRunning ? "Running" : "Live")
                         .font(.system(.caption, design: .monospaced).weight(.semibold))
@@ -395,10 +445,8 @@ struct JobDetailView: View {
     // MARK: - History Row
 
     private func historyRow(_ record: RunRecord) -> some View {
-        let matchedJob = allJobs.first(where: { $0.name == record.jobName })
-
-        return VStack(alignment: .leading, spacing: 2) {
-            // Line 1: status dot + job name + model badge + exit badge
+        VStack(alignment: .leading, spacing: 2) {
+            // Line 1: status dot + job name + exit badge + archive button
             HStack(spacing: Theme.paddingSmall) {
                 Circle()
                     .fill(statusColor(record))
@@ -406,25 +454,50 @@ struct JobDetailView: View {
 
                 Text(record.jobName)
                     .font(.system(.caption, design: .monospaced).weight(.semibold))
-                    .foregroundStyle(Theme.textPrimary)
+                    .foregroundStyle(record.isArchived ? Theme.textMuted : Theme.textPrimary)
                     .lineLimit(1)
-
-                if let matchedJob {
-                    modelBadge(for: matchedJob)
-                }
 
                 Spacer()
 
                 if let exitCode = record.exitCode {
                     exitBadge(exitCode)
                 }
+
+                Button(action: {
+                    if record.isArchived {
+                        historyService.unarchiveRecord(record)
+                    } else {
+                        historyService.archiveRecord(record)
+                    }
+                }) {
+                    Image(systemName: record.isArchived
+                        ? "arrow.uturn.backward" : "archivebox")
+                        .font(.system(size: 10))
+                        .foregroundStyle(record.isArchived
+                            ? Theme.sonnet : Theme.textMuted)
+                }
+                .buttonStyle(.plain)
+                .help(record.isArchived ? "Unarchive" : "Archive")
             }
 
-            // Line 2: timestamp
-            Text(record.displayTimestamp)
-                .font(.system(.caption2, design: .monospaced))
-                .foregroundStyle(Theme.textSecondary)
-                .padding(.leading, 10)
+            // Line 2: timestamp + archived badge
+            HStack(spacing: 4) {
+                Text(record.displayTimestamp)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Theme.textSecondary)
+
+                if record.isArchived {
+                    Text("archived")
+                        .font(.system(.caption2, design: .monospaced).weight(.medium))
+                        .foregroundStyle(Theme.textMuted)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(
+                            Capsule().fill(Theme.textMuted.opacity(0.15))
+                        )
+                }
+            }
+            .padding(.leading, 10)
 
             // Line 3: duration + output preview
             HStack(spacing: Theme.paddingMedium) {
@@ -447,6 +520,7 @@ struct JobDetailView: View {
         .padding(.horizontal, Theme.paddingMedium)
         .padding(.vertical, Theme.paddingSmall)
         .background(selection == .historical(record.id) ? Theme.sonnet.opacity(0.1) : Color.clear)
+        .opacity(record.isArchived ? 0.7 : 1.0)
         .contentShape(Rectangle())
         .onTapGesture {
             selection = .historical(record.id)
