@@ -50,7 +50,7 @@ struct MainView: View {
             // Sidebar portion
             HStack {
                 Group {
-                    if let url = Bundle.module.url(forResource: "logo", withExtension: "svg") ?? Bundle.main.url(forResource: "logo", withExtension: "svg"),
+                    if let url = Bundle.appResources.url(forResource: "logo", withExtension: "svg"),
                        let nsImage = NSImage(contentsOf: url) {
                         Image(nsImage: nsImage)
                             .resizable()

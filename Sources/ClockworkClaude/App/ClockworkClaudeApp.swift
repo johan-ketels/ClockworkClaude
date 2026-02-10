@@ -10,8 +10,7 @@ struct ClockworkClaudeApp: App {
     @State private var commandScanner = CommandScanner()
 
     init() {
-        if let fontURL = Bundle.module.url(forResource: "Timepiece", withExtension: "TTF")
-            ?? Bundle.main.url(forResource: "Timepiece", withExtension: "TTF") {
+        if let fontURL = Bundle.appResources.url(forResource: "Timepiece", withExtension: "TTF") {
             CTFontManagerRegisterFontsForURL(fontURL as CFURL, .process, nil)
         }
     }

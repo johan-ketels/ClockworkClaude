@@ -62,6 +62,23 @@ struct ThemedTextFieldStyle: TextFieldStyle {
     }
 }
 
+extension Bundle {
+    /// Safe alternative to Bundle.module that won't fatalError in release .app bundles.
+    /// Checks Contents/Resources/ for the SPM resource bundle, then falls back to Bundle.main.
+    static var appResources: Bundle {
+        let bundleName = "ClockworkClaude_ClockworkClaude"
+        if let resourceURL = Bundle.main.resourceURL,
+           let bundle = Bundle(path: resourceURL.appendingPathComponent("\(bundleName).bundle").path) {
+            return bundle
+        }
+        #if DEBUG
+        return Bundle.module
+        #else
+        return Bundle.main
+        #endif
+    }
+}
+
 extension Color {
     init(hex: UInt, opacity: Double = 1.0) {
         self.init(

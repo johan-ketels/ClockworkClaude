@@ -33,6 +33,13 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 # Copy executable
 cp ".build/$CONFIGURATION/$EXECUTABLE_NAME" "$APP_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME"
 
+# Copy SPM resource bundle into Resources (for Bundle.safeModule)
+RESOURCE_BUNDLE=".build/$CONFIGURATION/ClockworkClaude_ClockworkClaude.bundle"
+if [ -d "$RESOURCE_BUNDLE" ]; then
+    cp -R "$RESOURCE_BUNDLE" "$APP_BUNDLE/Contents/Resources/"
+    echo "    Copied SPM resource bundle"
+fi
+
 # Copy and patch Info.plist
 sed -e "s/\${VERSION}/$VERSION/g" \
     -e "s/\${BUILD_NUMBER}/$BUILD_NUMBER/g" \
