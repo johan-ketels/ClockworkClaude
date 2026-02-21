@@ -80,8 +80,31 @@ final class JobStore {
                 // Plist was deleted externally — reinstall
                 launchdService.install(jobs[i])
             } else if !jobs[i].enabled && status.isLoaded {
-                // Job was loaded externally — unload it
-                launchdService.unload(jobs[i])
+                // Job was loaded externally — uninstall it
+                launchdService.uninstall(jobs[i])
+            }
+        }
+
+        // Clean up orphaned plist files that don't match any known job
+        cleanOrphanedPlists(launchdService: launchdService)
+    }
+
+    private func cleanOrphanedPlists(launchdService: LaunchdService) {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let launchAgentsDir = home.appendingPathComponent("Library/LaunchAgents")
+        let prefix = "com.clockworkclaude."
+
+        guard let files = try? FileManager.default.contentsOfDirectory(atPath: launchAgentsDir.path) else {
+            return
+        }
+
+        let knownFilenames = Set(jobs.map(\.plistFilename))
+
+        for file in files where file.hasPrefix(prefix) && file.hasSuffix(".plist") {
+            if !knownFilenames.contains(file) {
+                let fullPath = launchAgentsDir.appendingPathComponent(file).path
+                print("Removing orphaned plist: \(file)")
+                launchdService.uninstallPlist(atPath: fullPath)
             }
         }
     }

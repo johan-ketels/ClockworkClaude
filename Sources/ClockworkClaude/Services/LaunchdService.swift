@@ -28,9 +28,11 @@ final class LaunchdService {
     }
 
     func uninstall(_ job: Job) {
-        let path = job.plistPath
-        runLaunchctl(["unload", path])
+        uninstallPlist(atPath: job.plistPath)
+    }
 
+    func uninstallPlist(atPath path: String) {
+        runLaunchctl(["unload", path])
         try? FileManager.default.removeItem(atPath: path)
     }
 
@@ -46,7 +48,7 @@ final class LaunchdService {
         if job.enabled {
             install(job)
         } else {
-            unload(job)
+            uninstall(job)
         }
     }
 
